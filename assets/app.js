@@ -536,13 +536,14 @@ async function importarObra(file){
 }
 
 /* ---------- Acceso ---------- */
-let loginRole='cliente';
+/* Cada público entra por su propio enlace: obras.teicod.com (clientes) y gestion.teicod.com o ?equipo (Montego). */
+const EQUIPO=/^gestion\./.test(location.hostname)||new URLSearchParams(location.search).has('equipo');
+if(EQUIPO){$('#l-eyebrow').textContent='Equipo Montego';$('#l-title').textContent='Gestión y campo';$('#l-lead').textContent='Entre con su correo y su clave. Verá la gestión completa o la carga de avance en campo, según su acceso.';document.title='Gestión Montego'}
 function showLogin(msg){
   $('#loading').hidden=true;$('#views').hidden=true;$('#login').hidden=false;$('#salir').hidden=true;$('#viewsel').hidden=true;
   $('#viewer').textContent='';$('#obra-pick').innerHTML='';
   if(msg){$('#loginmsg').textContent=msg}
 }
-document.querySelectorAll('.role').forEach(b=>b.onclick=()=>{loginRole=b.dataset.role;try{localStorage.setItem('mtg-rol',loginRole)}catch(_){}document.querySelectorAll('.role').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('#email').focus()});
 let altaModo=false;
 $('#modo').onclick=()=>{altaModo=!altaModo;$('#alta').hidden=!altaModo;
   $('#entrar').textContent=altaModo?'Crear mi clave y entrar':'Entrar';
@@ -593,9 +594,6 @@ async function enter(session){
   if(S.admin){let v=null;try{v=localStorage.getItem('mtg-vista')}catch(_){}S.view=v||'montego'}
   $('#login').hidden=true;$('#salir').hidden=false;
   $('#viewer').textContent=(r.data.nombre||r.data.email)+' · '+{admin:'Administrativo',campo:'Líder de campo',cliente:'Cliente'}[S.role];
-  let pedido=null;try{pedido=localStorage.getItem('mtg-rol')}catch(_){}
-  if(pedido&&pedido!==S.role){$('#banner').textContent=`Su correo está registrado como ${{admin:'administrativo',campo:'líder de campo',cliente:'cliente'}[S.role]}; le mostramos esa vista.`;$('#banner').hidden=false;setTimeout(()=>$('#banner').hidden=true,6000)}
-  try{localStorage.removeItem('mtg-rol')}catch(_){}
   try{await loadAll()}catch(e){$('#loading').innerHTML=`<b>No se pudo cargar la información</b>${esc(errText(e))}`;return}
   $('#loading').hidden=true;$('#views').hidden=false;forceRender();
   S.sb.channel('portal').on('postgres_changes',{event:'*',schema:'public'},scheduleReload).subscribe();

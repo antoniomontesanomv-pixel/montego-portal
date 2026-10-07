@@ -29,14 +29,9 @@
 
   <section id="login" class="login" hidden aria-label="Acceso">
     <div>
-      <span class="eyebrow">Grupo Montego</span>
-      <h1>Su obra, al día.</h1>
-      <p class="lead">Avance, órdenes de servicio y bitácora de cada obra en un solo lugar. Entre con su correo y su clave.</p>
-    </div>
-    <div class="roles" role="group" aria-label="Tipo de acceso">
-      <button class="role" type="button" data-role="cliente" aria-pressed="true"><b>Cliente</b><span>Vea el avance de sus obras y apruebe órdenes de servicio.</span></button>
-      <button class="role" type="button" data-role="admin" aria-pressed="false"><b>Administrativo</b><span>Gestione obras, emita órdenes y dé acceso a clientes y cuadrillas.</span></button>
-      <button class="role" type="button" data-role="campo" aria-pressed="false"><b>Líder de campo</b><span>Cargue el avance del día y la bitácora, solo con cantidades.</span></button>
+      <span class="eyebrow" id="l-eyebrow">Grupo Montego</span>
+      <h1 id="l-title">Su obra, al día.</h1>
+      <p class="lead" id="l-lead">Vea el avance de su obra y apruebe las órdenes de servicio. Entre con su correo y su clave.</p>
     </div>
     <form class="mailbox" id="loginform" novalidate>
       <label class="eyebrow" for="email">Correo registrado en Montego</label>
