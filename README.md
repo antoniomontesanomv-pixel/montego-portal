@@ -36,6 +36,8 @@ Acceso: cada persona invitada crea su clave la primera vez con "Primera vez: cre
 
 Si la base ya existía antes del 07/10/2026, ejecutar también `supabase/clave.sql`.
 
+Seguridad y respaldo: ejecutar `supabase/seguridad.sql` (registro de auditoría, órdenes decididas definitivas, eventos firmados por la base). Respaldo nocturno con `.github/workflows/respaldo.yml` (requiere repositorio privado y el secreto `SUPABASE_DB_URL` con la cadena Session pooler). Respaldo manual: Gestión > Accesos > Descargar respaldo.
+
 ### 2. Cloudflare Pages
 1. Workers & Pages > Create > Pages > Connect to Git > elegir `montego-portal`.
 2. Framework preset: None. Build command: vacío. Build output directory: `/`.

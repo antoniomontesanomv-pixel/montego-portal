@@ -1,0 +1,46 @@
+# Respaldo automático de la base del portal, todas las noches (3:00 a. m. hora de Venezuela).
+# Requiere: repositorio PRIVADO y el secreto SUPABASE_DB_URL (Settings > Secrets and variables > Actions)
+# con la cadena "Session pooler" de Supabase (Connect > Session pooler), que incluye la clave de la base.
+# Cada copia queda en Actions > "Respaldo de la base" > la corrida del día > Artifacts, por 30 días.
+name: Respaldo de la base
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que el repositorio es privado
+        if: ${{ !github.event.repository.private }}
+        run: |
+          echo "::error::El repositorio es público: cualquiera podría descargar el respaldo. Hágalo privado en Settings > General."
+          exit 1
+      - name: Comprobar el secreto
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "::error::Falta el secreto SUPABASE_DB_URL."; exit 1; fi
+      - name: Instalar el cliente de Postgres 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+      - name: Copiar la base
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          d=$(date -u +%F)
+          mkdir respaldo
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -Fc -f "respaldo/portal-$d.dump"
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" --schema=public --no-owner --no-privileges --data-only --column-inserts -f "respaldo/portal-datos-$d.sql"
+          ls -lh respaldo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+          path: respaldo/
+          retention-days: 30

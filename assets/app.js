@@ -243,6 +243,9 @@ function accesosHTML(){
    <h2>Cargar una obra desde el APU</h2>
    <p class="note">Suba el archivo de obra (JSON) que le entrega Claude a partir de la propuesta aprobada en el APU. Si la obra ya existe, se reemplaza su línea base.</p>
    <div class="actions"><label class="btn" for="f-obra">Elegir archivo de obra</label><input type="file" id="f-obra" accept="application/json,.json" hidden></div>
+   <h2>Respaldo</h2>
+   <p class="note">Descarga una copia completa de la base del portal (obras, órdenes, avances, bitácora, accesos y registro de auditoría) en un archivo que puede guardar en Drive. Además, GitHub guarda una copia automática cada noche.</p>
+   <div class="actions"><button class="btn" type="button" data-act="respaldo"${S.busy?' disabled':''}>Descargar respaldo</button></div>
   </section>`;
 }
 
@@ -356,6 +359,7 @@ async function act(a,ds){
   if(a==='invitar')return invitar();
   if(a==='asignar'||a==='desasignar')return asignar(ds.email,a==='asignar');
   if(a==='nuevocli')return nuevoCliente();
+  if(a==='respaldo')return respaldo();
 }
 
 async function decide(id){
@@ -429,6 +433,24 @@ async function setEstado(v){
   catch(e){toast('No se pudo cambiar el estado: '+errText(e))}
 }
 
+async function respaldo(){
+  const tablas=['clientes','invitaciones','perfiles','obras','obra_equipo','obra_lineas','obra_precios','avances','bitacora','ordenes','eventos','catalogo','auditoria'];
+  const out={generado:new Date().toISOString(),por:S.perfil&&S.perfil.email,tablas:{}};
+  S.busy=true;forceRender();
+  try{
+    for(const t of tablas){
+      const filas=[];
+      for(let i=0;;i+=1000){const r=await sb().from(t).select('*').range(i,i+999);if(r.error){if(t==='auditoria'&&/does not exist|schema cache/i.test(r.error.message))break;throw r.error}filas.push(...r.data);if(r.data.length<1000)break}
+      out.tablas[t]=filas;
+    }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));
+    a.download=`respaldo-portal-montego-${today()}.json`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    toast('Respaldo descargado.');
+  }catch(e){toast('No se pudo generar el respaldo: '+errText(e))}
+  finally{S.busy=false;forceRender()}
+}
 async function invitar(){
   const a=S.acc,email=a.email.trim().toLowerCase();
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Escriba un correo válido.');return}
