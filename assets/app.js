@@ -490,7 +490,20 @@ $('#loginform').onsubmit=async e=>{
   $('#sendlink').disabled=true;
   const r=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
   $('#sendlink').disabled=false;
-  $('#loginmsg').textContent=r.error?authMsg(r.error.message):`Listo. Revise ${email} y abra el enlace desde este mismo dispositivo.`;
+  $('#loginmsg').textContent=r.error?authMsg(r.error.message):`Listo. Le enviamos un correo a ${email} con un código de acceso.`;
+  if(!r.error){loginEmail=email;$('#codeform').hidden=false;$('#code').value='';$('#code').focus()}
+};
+let loginEmail='';
+$('#codeform').onsubmit=async e=>{
+  e.preventDefault();
+  const token=$('#code').value.replace(/\D/g,'');
+  if(token.length<6){$('#codemsg').textContent='El código tiene 6 dígitos.';return}
+  $('#sendcode').disabled=true;$('#codemsg').textContent='Verificando…';
+  const r=await S.sb.auth.verifyOtp({email:loginEmail,token,type:'email'});
+  $('#sendcode').disabled=false;
+  if(r.error){$('#codemsg').textContent=/expired|invalid/i.test(r.error.message)?'Código vencido o incorrecto. Revise que sea el del último correo o pida uno nuevo.':'No se pudo entrar: '+r.error.message;return}
+  $('#codeform').hidden=true;
+  if(r.data&&r.data.session&&!S.session)enter(r.data.session);
 };
 $('#salir').onclick=async()=>{await S.sb.auth.signOut();location.reload()};
 document.querySelectorAll('#viewsel button').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;try{localStorage.setItem('mtg-vista',S.view)}catch(_){}forceRender()});
