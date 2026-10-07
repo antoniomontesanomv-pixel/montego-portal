@@ -490,11 +490,24 @@ $('#loginform').onsubmit=async e=>{
   $('#sendlink').disabled=true;
   const r=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
   $('#sendlink').disabled=false;
-  $('#loginmsg').textContent=r.error?('No se pudo enviar el enlace: '+r.error.message):`Listo. Revise ${email} y abra el enlace desde este mismo dispositivo.`;
+  $('#loginmsg').textContent=r.error?authMsg(r.error.message):`Listo. Revise ${email} y abra el enlace desde este mismo dispositivo.`;
 };
 $('#salir').onclick=async()=>{await S.sb.auth.signOut();location.reload()};
 document.querySelectorAll('#viewsel button').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;try{localStorage.setItem('mtg-vista',S.view)}catch(_){}forceRender()});
 
+function authMsg(m){
+  m=String(m||'');
+  if(/only request this after (\d+)/i.test(m))return `Ya le enviamos un enlace. Espere ${m.match(/after (\d+)/i)[1]} segundos para pedir otro; use siempre el último correo recibido.`;
+  if(/rate limit/i.test(m))return 'Se pidieron demasiados enlaces en poco tiempo. Espere unos minutos y use el último correo recibido.';
+  return 'No se pudo enviar el enlace: '+m;
+}
+function hashError(){
+  const h=new URLSearchParams(location.hash.slice(1));if(!h.get('error'))return null;
+  history.replaceState(null,'',location.pathname+location.search);
+  return h.get('error_code')==='otp_expired'
+    ?'Ese enlace ya no sirve: vence en una hora y se anula al pedir uno nuevo o al usarlo. Pida otro y abra solo el último correo.'
+    :'No se pudo entrar con ese enlace ('+(h.get('error_description')||h.get('error'))+'). Pida uno nuevo.';
+}
 async function enter(session){
   S.session=session;S.me=session.user.id;
   const r=await S.sb.from('perfiles').select('*').eq('id',S.me).maybeSingle();
@@ -517,6 +530,6 @@ async function enter(session){
   S.sb=window.supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,detectSessionInUrl:true}});
   const {data}=await S.sb.auth.getSession();
   if(data&&data.session)return enter(data.session);
-  showLogin();
+  const he=hashError();showLogin(he||undefined);
   S.sb.auth.onAuthStateChange((ev,session)=>{if(ev==='SIGNED_IN'&&session&&!S.session)enter(session)});
 })();
