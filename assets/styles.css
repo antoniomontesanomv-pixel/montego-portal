@@ -159,10 +159,12 @@ th{color:var(--brand)}
 .role b{font:700 1.05rem var(--f-display);color:var(--brand)}
 .role span{font-size:.88rem;color:var(--muted)}
 .mailbox{display:grid;gap:10px;max-width:460px}
-input[type=email],#code{font:400 1rem var(--f-body);width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+input[type=email],input[type=password],#codigo{font:400 1rem var(--f-body);width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .userbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .chipx{font:600 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand)}
 
 .tbl td:nth-child(2){min-width:190px}
 .field .num{white-space:normal}
-#code{font:500 1.4rem var(--f-mono);letter-spacing:.3em}
+.alta{display:grid;gap:10px}
+.linkbtn{all:unset;cursor:pointer;color:var(--brand-2);font-size:.9rem;text-decoration:underline;justify-self:start}
+.linkbtn:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}

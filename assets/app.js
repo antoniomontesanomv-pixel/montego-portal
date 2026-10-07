@@ -221,10 +221,10 @@ function accesosHTML(){
   const cli=Object.fromEntries(S.clientes.map(c=>[c.id,c.razon_social]));
   const eq=S.equipo.filter(e=>e.obra_id===S.obraId).map(e=>e.email.toLowerCase());
   return `<section class="panel sec"><div class="sec-head"><h2>Accesos al portal</h2><span class="note">${S.invit.length} correos registrados</span></div>
-   <div class="tbl"><table><thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Cliente / obra</th><th></th></tr></thead><tbody>
-   ${S.invit.map(i=>`<tr><td>${esc(i.email)}</td><td>${esc(i.nombre||'')}</td><td>${ROL[i.rol]||esc(i.rol)}</td>
+   <div class="tbl"><table><thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th>Código</th><th>Cliente / obra</th><th></th></tr></thead><tbody>
+   ${S.invit.map(i=>`<tr><td>${esc(i.email)}</td><td>${esc(i.nombre||'')}</td><td>${ROL[i.rol]||esc(i.rol)}</td><td class="num">${esc(i.codigo||'')}</td>
      <td>${i.rol==='cliente'?esc(cli[i.cliente_id]||i.cliente_id||''):i.rol==='campo'?(eq.includes(i.email.toLowerCase())?`<span class="pill ok">Asignado a esta obra</span>`:`<button class="btn sm" data-act="asignar" data-email="${esc(i.email)}">Asignar a esta obra</button>`):'Todas'}</td>
-     <td>${i.rol==='campo'&&eq.includes(i.email.toLowerCase())?`<button class="btn sm" data-act="desasignar" data-email="${esc(i.email)}">Quitar de la obra</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="note">Aún no hay correos registrados.</td></tr>'}
+     <td>${i.rol==='campo'&&eq.includes(i.email.toLowerCase())?`<button class="btn sm" data-act="desasignar" data-email="${esc(i.email)}">Quitar de la obra</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="note">Aún no hay correos registrados.</td></tr>'}
    </tbody></table></div>
    <div class="form"><div class="frow">
      <div class="field"><label for="a-email">Correo</label><input type="text" id="a-email" inputmode="email" value="${esc(a.email)}" placeholder="persona@empresa.com"></div>
@@ -232,7 +232,7 @@ function accesosHTML(){
      <div class="field"><label for="a-rol">Rol</label><select id="a-rol">${Object.entries(ROL).map(([k,v])=>`<option value="${k}"${a.rol===k?' selected':''}>${v}</option>`).join('')}</select></div>
      ${a.rol==='cliente'?`<div class="field"><label for="a-cli">Cliente</label><select id="a-cli"><option value="">Elegir cliente…</option>${S.clientes.map(c=>`<option value="${esc(c.id)}"${a.cliente===c.id?' selected':''}>${esc(c.id)} · ${esc(c.razon_social)}</option>`).join('')}</select></div>`:''}
      <div class="field"><button class="btn pri" type="button" data-act="invitar">Dar acceso</button></div>
-   </div><p class="note">La persona entra con su correo desde la página de inicio. ${ob?`Los líderes de campo solo ven las obras a las que los asigne; los clientes ven todas las obras de su empresa.`:''}</p></div>
+   </div><p class="note">Envíele a la persona su código: con él crea su clave la primera vez en la página de inicio. ${ob?`Los líderes de campo solo ven las obras a las que los asigne; los clientes ven todas las obras de su empresa.`:''}</p></div>
    <h2>Clientes</h2>
    <div class="frow">
      <div class="field"><label for="c-id">Código</label><input type="text" id="c-id" value="${esc(S.nc.id)}" placeholder="CLI-001"></div>
@@ -434,9 +434,10 @@ async function invitar(){
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Escriba un correo válido.');return}
   if(a.rol==='cliente'&&!a.cliente){toast('Elija a qué cliente pertenece.');return}
   try{
-    ok(await sb().from('invitaciones').upsert({email,rol:a.rol,nombre:a.nombre.trim()||null,cliente_id:a.rol==='cliente'?a.cliente:null}));
+    const codigo=String(100000+crypto.getRandomValues(new Uint32Array(1))[0]%900000);
+    ok(await sb().from('invitaciones').upsert({email,rol:a.rol,nombre:a.nombre.trim()||null,cliente_id:a.rol==='cliente'?a.cliente:null,codigo}));
     await logEvent('montego',`Dio acceso a ${email} como ${{admin:'administrativo',campo:'líder de campo',cliente:'cliente'}[a.rol]}.`);
-    S.acc={email:'',nombre:'',rol:a.rol,cliente:'',obra:''};toast('Acceso creado. Ya puede entrar con su correo.');
+    S.acc={email:'',nombre:'',rol:a.rol,cliente:'',obra:''};toast(`Acceso creado. Envíele a ${email} el código ${codigo} para crear su clave.`);
     await loadAll();forceRender();
   }catch(e){toast('No se pudo dar acceso: '+errText(e))}
 }
@@ -483,36 +484,40 @@ function showLogin(msg){
   if(msg){$('#loginmsg').textContent=msg}
 }
 document.querySelectorAll('.role').forEach(b=>b.onclick=()=>{loginRole=b.dataset.role;try{localStorage.setItem('mtg-rol',loginRole)}catch(_){}document.querySelectorAll('.role').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('#email').focus()});
+let altaModo=false;
+$('#modo').onclick=()=>{altaModo=!altaModo;$('#alta').hidden=!altaModo;
+  $('#entrar').textContent=altaModo?'Crear mi clave y entrar':'Entrar';
+  $('#modo').textContent=altaModo?'Ya tengo clave: entrar':'Primera vez: crear mi clave';
+  $('#clave').autocomplete=altaModo?'new-password':'current-password';
+  $('#loginmsg').textContent=altaModo?'Use el correo que registró Montego y el código de invitación que le dieron. La clave debe tener al menos 8 caracteres.':'Solo pueden entrar los correos que Montego haya registrado. Si olvidó su clave, pídale a Montego un código nuevo.'};
 $('#loginform').onsubmit=async e=>{
   e.preventDefault();
-  const email=$('#email').value.trim().toLowerCase();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){$('#loginmsg').textContent='Escriba un correo válido.';return}
-  $('#sendlink').disabled=true;
-  const r=await S.sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
-  $('#sendlink').disabled=false;
-  $('#loginmsg').textContent=r.error?authMsg(r.error.message):`Listo. Le enviamos un correo a ${email} con un código de acceso.`;
-  if(!r.error){loginEmail=email;$('#codeform').hidden=false;$('#code').value='';$('#code').focus()}
-};
-let loginEmail='';
-$('#codeform').onsubmit=async e=>{
-  e.preventDefault();
-  const token=$('#code').value.replace(/\D/g,'');
-  if(token.length<6){$('#codemsg').textContent='El código tiene 6 dígitos.';return}
-  $('#sendcode').disabled=true;$('#codemsg').textContent='Verificando…';
-  const r=await S.sb.auth.verifyOtp({email:loginEmail,token,type:'email'});
-  $('#sendcode').disabled=false;
-  if(r.error){$('#codemsg').textContent=/expired|invalid/i.test(r.error.message)?'Código vencido o incorrecto. Revise que sea el del último correo o pida uno nuevo.':'No se pudo entrar: '+r.error.message;return}
-  $('#codeform').hidden=true;
-  if(r.data&&r.data.session&&!S.session)enter(r.data.session);
+  const email=$('#email').value.trim().toLowerCase(),password=$('#clave').value,msg=t=>$('#loginmsg').textContent=t;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return msg('Escriba un correo válido.');
+  if(password.length<8)return msg('La clave debe tener al menos 8 caracteres.');
+  if(altaModo&&password!==$('#clave2').value)return msg('Las dos claves no coinciden.');
+  $('#entrar').disabled=true;msg(altaModo?'Creando su acceso…':'Entrando…');
+  const r=altaModo
+    ?await S.sb.auth.signUp({email,password,options:{data:{codigo:$('#codigo').value.trim()}}})
+    :await S.sb.auth.signInWithPassword({email,password});
+  $('#entrar').disabled=false;
+  if(r.error)return msg(authMsg(r.error.message));
+  if(!r.data.session)return msg('Su clave quedó creada, pero falta activar el acceso sin confirmación de correo en Supabase. Avise a Montego.');
+  if(!S.session)enter(r.data.session);
 };
 $('#salir').onclick=async()=>{await S.sb.auth.signOut();location.reload()};
 document.querySelectorAll('#viewsel button').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;try{localStorage.setItem('mtg-vista',S.view)}catch(_){}forceRender()});
 
 function authMsg(m){
   m=String(m||'');
-  if(/only request this after (\d+)/i.test(m))return `Ya le enviamos un enlace. Espere ${m.match(/after (\d+)/i)[1]} segundos para pedir otro; use siempre el último correo recibido.`;
-  if(/rate limit/i.test(m))return 'Se pidieron demasiados enlaces en poco tiempo. Espere unos minutos y use el último correo recibido.';
-  return 'No se pudo enviar el enlace: '+m;
+  if(/invalid login credentials/i.test(m))return 'Correo o clave incorrectos. Si es su primera vez, use "Primera vez: crear mi clave".';
+  if(/c[oó]digo de invitaci[oó]n/i.test(m))return 'El código de invitación no coincide. Pídale a Montego el código correcto.';
+  if(/no registrado|database error saving new user/i.test(m))return 'Ese correo no está registrado en Montego, o el código no coincide. Verifique con Montego.';
+  if(/already registered|already been registered/i.test(m))return 'Ese correo ya tiene clave. Use "Ya tengo clave: entrar".';
+  if(/email not confirmed/i.test(m))return 'Falta activar el acceso sin confirmación de correo en Supabase. Avise a Montego.';
+  if(/password/i.test(m)&&/(least|weak|short)/i.test(m))return 'La clave es muy débil. Use al menos 8 caracteres con letras y números.';
+  if(/rate limit|only request this/i.test(m))return 'Demasiados intentos seguidos. Espere un minuto y vuelva a intentar.';
+  return 'No se pudo entrar: '+m;
 }
 function hashError(){
   const h=new URLSearchParams(location.hash.slice(1));if(!h.get('error'))return null;

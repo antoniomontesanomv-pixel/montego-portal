@@ -14,8 +14,10 @@ create table if not exists public.invitaciones (
   rol text not null check (rol in ('admin','campo','cliente')),
   cliente_id text references public.clientes(id),
   nombre text,
+  codigo text,                         -- código de invitación para crear la clave la primera vez
   creada timestamptz default now()
 );
+alter table public.invitaciones add column if not exists codigo text;
 
 create table if not exists public.perfiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -161,6 +163,20 @@ begin
 end $$;
 drop trigger if exists al_crear_usuario on auth.users;
 create trigger al_crear_usuario after insert on auth.users for each row execute function public.nuevo_usuario();
+
+-- Solo se crean cuentas de correos invitados y con el código correcto (si la invitación tiene código).
+create or replace function public.validar_alta() returns trigger language plpgsql security definer set search_path = public as
+$$ declare inv invitaciones%rowtype;
+begin
+  select * into inv from invitaciones where lower(email) = lower(new.email);
+  if not found then raise exception 'Correo no registrado en Montego'; end if;
+  if inv.codigo is not null and inv.codigo <> coalesce(new.raw_user_meta_data->>'codigo', '') then
+    raise exception 'Código de invitación incorrecto';
+  end if;
+  return new;
+end $$;
+drop trigger if exists antes_crear_usuario on auth.users;
+create trigger antes_crear_usuario before insert on auth.users for each row execute function public.validar_alta();
 
 -- Si la invitación se crea o cambia después de que la persona ya entró, se actualiza su perfil.
 create or replace function public.sync_invitacion() returns trigger language plpgsql security definer set search_path = public as

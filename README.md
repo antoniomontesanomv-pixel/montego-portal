@@ -29,12 +29,12 @@ Sitio estático (HTML + JS, sin compilación) publicado en Cloudflare Pages. Dat
    ```sql
    insert into invitaciones(email, rol, nombre) values ('correo@dominio.com', 'admin', 'Nombre');
    ```
-4. Authentication > URL Configuration:
-   - Site URL: `https://obras.teicod.com`
-   - Redirect URLs: `https://obras.teicod.com/**` y `https://*.montego-portal.pages.dev/**`
+4. Authentication > Sign In / Providers > Email: desactivar **Confirm email** (se entra con correo y clave, sin correos de confirmación).
 5. Project Settings > API: copiar **Project URL** y **anon public key** en `assets/config.js`.
 
-El correo incluido en Supabase envía pocos mensajes por hora; para clientes reales conviene configurar un SMTP propio (Authentication > Emails > SMTP Settings).
+Acceso: cada persona invitada crea su clave la primera vez con "Primera vez: crear mi clave", usando el código de invitación que le da Montego (se genera al dar acceso y se ve en Gestión > Accesos). Una invitación sin código (como la del primer administrativo) no lo pide. Si alguien olvida su clave: borrar su usuario en Authentication > Users y volver a darle acceso para generar un código nuevo.
+
+Si la base ya existía antes del 07/10/2026, ejecutar también `supabase/clave.sql`.
 
 ### 2. Cloudflare Pages
 1. Workers & Pages > Create > Pages > Connect to Git > elegir `montego-portal`.
