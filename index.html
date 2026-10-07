@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Portal de obra Montego</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <header class="top">
+    <div class="mark">M<i>O</i>NTEGO<small>Portal de obra</small></div>
+    <div class="userbar">
+      <div class="seg" id="viewsel" role="group" aria-label="Vista" hidden>
+        <button type="button" data-view="montego">Gestión</button>
+        <button type="button" data-view="campo">Campo</button>
+        <button type="button" data-view="cliente">Vista del cliente</button>
+        <button type="button" data-view="ambas">Lado a lado</button>
+      </div>
+      <div class="who"><div id="viewer"></div><div id="obra-pick"></div></div>
+      <button class="btn sm" type="button" id="salir" hidden>Salir</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="login" class="login" hidden aria-label="Acceso">
+    <div>
+      <span class="eyebrow">Grupo Montego</span>
+      <h1>Su obra, al día.</h1>
+      <p class="lead">Avance, órdenes de servicio y bitácora de cada obra en un solo lugar. Elija cómo entra y le enviamos un enlace de acceso a su correo. No necesita contraseña.</p>
+    </div>
+    <div class="roles" role="group" aria-label="Tipo de acceso">
+      <button class="role" type="button" data-role="cliente" aria-pressed="true"><b>Cliente</b><span>Vea el avance de sus obras y apruebe órdenes de servicio.</span></button>
+      <button class="role" type="button" data-role="admin" aria-pressed="false"><b>Administrativo</b><span>Gestione obras, emita órdenes y dé acceso a clientes y cuadrillas.</span></button>
+      <button class="role" type="button" data-role="campo" aria-pressed="false"><b>Líder de campo</b><span>Cargue el avance del día y la bitácora, solo con cantidades.</span></button>
+    </div>
+    <form class="mailbox" id="loginform" novalidate>
+      <label class="eyebrow" for="email">Correo registrado en Montego</label>
+      <input type="email" id="email" autocomplete="email" required placeholder="nombre@empresa.com">
+      <button class="btn pri" type="submit" id="sendlink">Enviarme el enlace de acceso</button>
+      <p class="note" id="loginmsg">Solo pueden entrar los correos que Montego haya registrado.</p>
+    </form>
+  </section>
+
+  <div class="views" id="views" hidden>
+    <section class="view" id="v-cli" aria-label="Vista del cliente"></section>
+    <section class="view" id="v-int" aria-label="Vista interna Montego" hidden></section>
+  </div>
+
+  <div class="panel empty" id="loading"><b>Cargando</b>Conectando con el portal de obra.</div>
+
+  <footer>
+    <div>Grupo Montego · Actividades de construcción, tecnología y servicios</div>
+    <div>Montos en US$ sin IVA salvo donde se indica. Cada orden aprobada queda registrada con nombre, fecha y comentario.</div>
+  </footer>
+</div>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
