@@ -41,15 +41,21 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
--- ============ 2. Órdenes decididas son definitivas ============
--- Una OS aprobada o rechazada ya no se puede editar ni borrar (tampoco borrando la obra completa).
-create or replace function public.proteger_orden() returns trigger language plpgsql as
+-- ============ 2. Órdenes decididas no se editan ============
+-- Una OS aprobada o rechazada ya no se puede modificar. Solo el administrativo puede eliminarla
+-- (queda copia completa en auditoría).
+create or replace function public.proteger_orden() returns trigger language plpgsql security definer set search_path = public as
 $$ begin
-  if old.estado <> 'pendiente' then
-    raise exception 'La orden % ya fue % y no se puede % ', old.numero, old.estado,
-      case when tg_op = 'DELETE' then 'borrar' else 'modificar' end;
+  if tg_op = 'DELETE' then
+    if old.estado <> 'pendiente' and not es_admin() and auth.uid() is not null then
+      raise exception 'Solo el administrativo puede eliminar la orden %', old.numero;
+    end if;
+    return old;
   end if;
-  return case when tg_op = 'DELETE' then old else new end;
+  if old.estado <> 'pendiente' then
+    raise exception 'La orden % ya fue % y no se puede modificar', old.numero, old.estado;
+  end if;
+  return new;
 end $$;
 drop trigger if exists proteger_orden on public.ordenes;
 create trigger proteger_orden before update or delete on public.ordenes for each row execute function public.proteger_orden();

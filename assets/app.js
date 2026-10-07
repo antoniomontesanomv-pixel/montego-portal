@@ -141,8 +141,8 @@ function intHTML(M){
 
   // Órdenes
   h+=`<section class="panel sec"><div class="sec-head"><h2>Órdenes de servicio</h2><span class="note">${M.ords.length} emitidas</span></div><div class="tbl"><table>
-   <thead><tr><th>Nº</th><th>Título</th><th class="n">Monto</th><th>Estado</th><th>Decisión del cliente</th></tr></thead><tbody>
-   ${M.ords.map(o=>{const [c,l]=EST[o.estado]||['',o.estado];return `<tr${S.flash['os:'+o.id]?' class="flash"':''}><td class="code">${esc(o.numero)}</td><td>${esc(o.titulo)}</td><td class="n">${fmt(osMonto(o))}</td><td><span class="pill ${c}">${o.estado==='pendiente'?'Esperando al cliente':l}</span></td><td class="note">${o.decision?`${esc(S.names[o.decision.por]||'el cliente')}, ${ftime(o.decision.fecha)}${o.decision.comentario?`: “${esc(o.decision.comentario)}”`:''}`:'—'}</td></tr>`}).join('')}
+   <thead><tr><th>Nº</th><th>Título</th><th class="n">Monto</th><th>Estado</th><th>Decisión del cliente</th><th></th></tr></thead><tbody>
+   ${M.ords.map(o=>{const [c,l]=EST[o.estado]||['',o.estado];return `<tr${S.flash['os:'+o.id]?' class="flash"':''}><td class="code">${esc(o.numero)}</td><td>${esc(o.titulo)}</td><td class="n">${fmt(osMonto(o))}</td><td><span class="pill ${c}">${o.estado==='pendiente'?'Esperando al cliente':l}</span></td><td class="note">${o.decision?`${esc(S.names[o.decision.por]||'el cliente')}, ${ftime(o.decision.fecha)}${o.decision.comentario?`: “${esc(o.decision.comentario)}”`:''}`:'—'}</td><td><button class="btn sm bad" type="button" data-act="delos" data-id="${esc(o.id)}"${S.busy?' disabled':''}>Eliminar</button></td></tr>`}).join('')}
    </tbody></table></div></section>`;
 
   // Emitir OS
@@ -360,6 +360,7 @@ async function act(a,ds){
   if(a==='asignar'||a==='desasignar')return asignar(ds.email,a==='asignar');
   if(a==='nuevocli')return nuevoCliente();
   if(a==='respaldo')return respaldo();
+  if(a==='delos')return borrarOS(id);
 }
 
 async function decide(id){
@@ -433,6 +434,44 @@ async function setEstado(v){
   catch(e){toast('No se pudo cambiar el estado: '+errText(e))}
 }
 
+async function borrarOS(id){
+  const o=S.ordenes.find(x=>x.id===id);if(!o)return;
+  const extra=o.estado==='pendiente'?'':` Ya fue ${o.estado} por el cliente: el monto vigente de la obra cambiará.`;
+  if(!confirm(`¿Eliminar ${o.numero} “${o.titulo}”?${extra} Queda copia en el registro de auditoría.`))return;
+  try{
+    ok(await sb().from('ordenes').delete().eq('id',id));
+    await logEvent('montego',`Eliminó ${o.numero} “${o.titulo}” (${o.estado}, ${usd(osMonto(o))}).`);
+    toast(`${o.numero} eliminada.`);await loadAll();forceRender();
+  }catch(e){toast('No se pudo eliminar: '+errText(e))}
+}
+function bajar(nombre,texto,tipo){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texto],{type:tipo}));
+  a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+/* Libro de presupuestos legible sin internet: una sección por obra con línea base, cantidades vigentes, OS y decisiones. */
+function libroOffline(){
+  const cli=Object.fromEntries(S.clientes.map(c=>[c.id,c.razon_social])), prev=S.obraId;
+  let h='';
+  for(const ob of S.obras){
+    S.obraId=ob.id;const M=model();
+    h+=`<section><h2>${esc(ob.codigo)} · ${esc(ob.nombre)}</h2>
+    <p>Cliente: <b>${esc(cli[ob.cliente_id]||ob.cliente_id)}</b> · ${esc(ob.ubicacion||'')} · Estado: ${esc((ESTOBRA[ob.estado]||['',ob.estado])[1])} · Inicio ${esc(ob.fecha_inicio||'—')} · Plazo ${M.plazo} días</p>
+    <table class="r"><tr><td>Presupuesto aprobado</td><td>${fmt(M.mC)}</td></tr><tr><td>Reserva de contingencia (${fmt(+ob.contingencia_pct||0,0)} %)</td><td>${fmt(M.R)}</td></tr>
+    <tr><td>Órdenes aprobadas</td><td>${fmt(M.mA)}</td></tr><tr><td>Monto vigente sin IVA</td><td><b>${fmt(M.mV)}</b></td></tr><tr><td>Monto vigente con IVA (${fmt(M.iva,0)} %)</td><td>${fmt(M.mV*(1+M.iva/100))}</td></tr>
+    <tr><td>Ejecutado a la fecha</td><td>${fmt(M.ejec)} (${fmt(M.av,1)} %)</td></tr></table>
+    <h3>Partidas</h3><table><tr><th>Ítem</th><th>Código</th><th>Descripción</th><th>Und</th><th>Contrato</th><th>Vigente</th><th>Ejecutado</th><th>P. unit.</th><th>Total vigente</th><th>Origen</th></tr>
+    ${M.L.map(l=>`<tr><td>${esc(l.item)}</td><td>${esc(l.cod_cliente||'')}</td><td>${esc(l.descripcion)}</td><td>${esc(l.unidad||'')}</td><td>${fmt(+l.cantidad||0)}</td><td>${fmt(l.cant_vig)}</td><td>${fmt(l.ej)}</td><td>${fmt(l.pu)}</td><td>${fmt(l.cant_vig*l.pu)}</td><td>${esc(l.origen)}${l.os?' + '+esc(l.os.join(', ')):''}</td></tr>`).join('')}</table>
+    <h3>Órdenes de servicio</h3>${M.ords.length?`<table><tr><th>Nº</th><th>Fecha</th><th>Título</th><th>Monto</th><th>Estado</th><th>Decisión</th></tr>
+    ${M.ords.slice().reverse().map(o=>`<tr><td>${esc(o.numero)}</td><td>${esc(o.fecha||'')}</td><td>${esc(o.titulo)}</td><td>${fmt(osMonto(o))}</td><td>${esc(o.estado)}</td><td>${o.decision?`${esc(S.names[o.decision.por]||'')} ${esc(String(o.decision.fecha||'').slice(0,16).replace('T',' '))} ${esc(o.decision.comentario||'')}`:''}</td></tr>`).join('')}</table>`:'<p>Sin órdenes.</p>'}
+    </section>`;
+  }
+  S.obraId=prev;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Presupuestos Montego ${today()}</title><style>
+  body{font:14px/1.45 system-ui,sans-serif;color:#14202e;margin:24px;max-width:1200px}h1{color:#0f4c8a}h2{color:#0f4c8a;border-top:2px solid #0f4c8a;padding-top:14px;margin-top:32px}
+  table{border-collapse:collapse;width:100%;margin:8px 0 16px}th,td{border:1px solid #d6dde6;padding:4px 6px;vertical-align:top}th{background:#eef2f6;text-align:left}
+  td:nth-child(n+5):not(:last-child){text-align:right;white-space:nowrap}table.r{width:auto}table.r td:last-child{text-align:right}@media print{section{break-before:page}}
+  </style></head><body><h1>Grupo Montego · Presupuestos y obras</h1><p>Copia generada el ${new Date().toLocaleString('es-VE')} por ${esc(S.perfil&&S.perfil.email||'')}. Montos en US$. Se abre sin internet en cualquier navegador.</p>${h||'<p>No hay obras.</p>'}</body></html>`;
+}
 async function respaldo(){
   const tablas=['clientes','invitaciones','perfiles','obras','obra_equipo','obra_lineas','obra_precios','avances','bitacora','ordenes','eventos','catalogo','auditoria'];
   const out={generado:new Date().toISOString(),por:S.perfil&&S.perfil.email,tablas:{}};
@@ -443,11 +482,9 @@ async function respaldo(){
       for(let i=0;;i+=1000){const r=await sb().from(t).select('*').range(i,i+999);if(r.error){if(t==='auditoria'&&/does not exist|schema cache/i.test(r.error.message))break;throw r.error}filas.push(...r.data);if(r.data.length<1000)break}
       out.tablas[t]=filas;
     }
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));
-    a.download=`respaldo-portal-montego-${today()}.json`;document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
-    toast('Respaldo descargado.');
+    bajar(`respaldo-portal-montego-${today()}.json`,JSON.stringify(out,null,1),'application/json');
+    bajar(`presupuestos-montego-${today()}.html`,libroOffline(),'text/html');
+    toast('Respaldo descargado: archivo de datos (JSON) y libro de presupuestos (HTML).');
   }catch(e){toast('No se pudo generar el respaldo: '+errText(e))}
   finally{S.busy=false;forceRender()}
 }
